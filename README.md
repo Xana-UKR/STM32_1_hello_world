@@ -2,15 +2,19 @@
 
 Use the supplied project files to run a small Rust application on an ST NUCLEO-F439ZI from Windows. It drives blue LED LD2 on for 5 seconds and off for 5 seconds, and transmits a message with a cycle counter approximately every 10 seconds. No external wiring is needed.
 
-The owner demonstrated building, LED control, power-cycle startup of the earlier LED firmware, recurring serial output, and a Rust source breakpoint with stepping and variable inspection. See [tested evidence and limitations](#tested-evidence-and-limitations), the [project journal](PROJECT_JOURNAL.md), and the [requirements](PROJECT_SPEC.md).
+The NUCLEO-F439ZI is an ST development board built around the STM32F439ZI microcontroller. It also includes an onboard ST-LINK programmer and debugger, a USB connection, and peripherals such as LEDs, making it possible to develop and test firmware without a separate debug probe. See [ST's Nucleo-144 board user manual (UM1974)](https://www.st.com/resource/en/user_manual/dm00244518-stm32-nucleo144-boardsstmicroelectronics.pdf) for board connections and features.
 
 ## 1. Prepare the computer and project
 
-You need Windows, the NUCLEO-F439ZI, one USB data cable with Micro-B at the board end, and internet access for installation and Rust dependencies. Use Visual Studio Code for the debugging exercise.
+**1.1** Check that you have Windows, the NUCLEO-F439ZI, one USB data cable with Micro-B at the board end, and internet access for installation and Rust dependencies. Use Visual Studio Code (VS Code), a code editor that can also run the debugger, for the debugging exercise.
 
-Open this project **folder** in VS Code, including its hidden `.cargo` and `.vscode` folders and `Cargo.lock`. Run the PowerShell commands below from the folder containing `Cargo.toml`. The supplied project is already initialized; do not run `cargo init` again. Earlier project-creation exercises are recorded in the journal.
+**1.2** Open this project **folder** in VS Code, including its hidden `.cargo` and `.vscode` folders and `Cargo.lock`. 
+Run the PowerShell commands below from the folder containing `Cargo.toml`. 
+Note: The supplied project is already initialized; do not run `cargo init` again.
 
-Install Rust through rustup from the [official Rust installation page](https://www.rust-lang.org/tools/install), using the default installation and following any Microsoft C++ build-tool prompts. Reopen PowerShell, then check:
+**1.3** Install Rust through rustup from the [official Rust installation page](https://www.rust-lang.org/tools/install), using the default installation and following any Microsoft C++ build-tool prompts. 
+
+Reopen PowerShell, then check:
 
 ```powershell
 rustc --version
@@ -18,32 +22,38 @@ cargo --version
 rustup --version
 ```
 
-`rustc` compiles Rust; Cargo manages dependencies and builds; rustup installs compiler toolchains and compilation targets. Add the target for the STM32's Cortex-M4 processor with hardware floating-point support:
+These build tools provide the native compiler and linker used by Rust tools on Windows. 
+`rustc` compiles Rust; 
+Cargo manages dependencies and builds; 
+rustup installs compiler toolchains and compilation targets. 
+
+**1.4** Add the target for the STM32's Cortex-M4 processor with hardware floating-point support:
 
 ```powershell
 rustup target add thumbv7em-none-eabihf
 rustup target list --installed
 ```
 
-The list must include `thumbv7em-none-eabihf`. This selects embedded machine code rather than a Windows executable.
+The list must include `thumbv7em-none-eabihf`. This target tells Rust to generate machine code for the STM32's Cortex-M4 processor, rather than for the computer building the code. It also specifies hardware floating-point support and an environment without an operating system.
 
-Install probe-rs using the PowerShell command used on the project computer, from the [probe-rs installation guide](https://probe.rs/docs/getting-started/installation/):
+**1.5** Install probe-rs using the [probe-rs installation guide](https://probe.rs/docs/getting-started/installation/).
 
 ```powershell
 irm https://github.com/probe-rs/probe-rs/releases/latest/download/probe-rs-tools-installer.ps1 | iex
 ```
 
-This downloads and immediately executes an installer script. The `latest` URL can install a newer version than the tested one. Reopen PowerShell and check:
-
 ```powershell
 probe-rs --version
 ```
+probe-rs is a tool for communicating with microcontrollers through a debug probe. We need it to transfer the compiled firmware from the computer to the STM32 through ST-LINK and to inspect or debug the running program. It also lets us check the connection and read the existing flash before programming.
 
-Before connecting the board, install **STSW-LINK009** from [ST's ST-LINK driver page](https://www.st.com/en/development-tools/stsw-link009.html). Extract the package and run its Windows driver installer; administrator rights may be needed.
+**1.6** Before connecting the board, install **STSW-LINK009** from [ST's ST-LINK driver page](https://www.st.com/en/development-tools/stsw-link009.html). Extract the package and run its Windows driver installer; administrator rights may be needed.
+
+This driver lets Windows communicate with the board's ST-LINK interface. 
 
 ## 2. Connect and check the board
 
-With USB disconnected, place the board on a nonconductive surface and check the documented USB-powered configuration. These settings were checked by the owner; consult [ST manual UM1974](https://www.st.com/resource/en/user_manual/dm00244518-stm32-nucleo144-boardsstmicroelectronics.pdf) if your board differs.
+**2.1** With USB disconnected, place the board on a nonconductive surface and check the documented USB-powered configuration. These settings were checked by the owner; consult [ST manual UM1974](https://www.st.com/resource/en/user_manual/dm00244518-stm32-nucleo144-boardsstmicroelectronics.pdf) if your board differs.
 
 | Jumper | Setting | Meaning |
 | --- | --- | --- |
@@ -52,11 +62,11 @@ With USB disconnected, place the board on a nonconductive surface and check the 
 | JP5 | ON | Cap joining its pins. |
 | CN4 | Both ON | Two caps connect ST-LINK to the target STM32. |
 
-Connect the USB data cable to **CN1**, the ST-LINK connector. CN13 is the separate user USB connector and is not used here. ST-LINK supplies programming/debugging access and a virtual serial port through the same cable. An Explorer disk window may also appear; no copying to that virtual disk is needed.
+**2.2** Connect the USB data cable to **CN1**, the ST-LINK connector. CN13 is the separate user USB connector and is not used here. ST-LINK supplies programming/debugging access and a virtual serial port through the same cable. An Explorer disk window may also appear; no copying to that virtual disk is needed.
 
-In **Device Manager → Ports (COM & LPT)**, find **STMicroelectronics STLink Virtual COM Port**. It was **COM6** on the project computer. Recheck after reconnection; the number can change. If uncertain, identify which entry disappears and returns when unplugging and reconnecting the board.
+**2.3** In **Device Manager → Ports (COM & LPT)**, find **STMicroelectronics STLink Virtual COM Port**. It was **COM6** on the project computer. Recheck after reconnection; the number can change. If uncertain, identify which entry disappears and returns when unplugging and reconnecting the board.
 
-Check the probe and target connection:
+**2.4** Check the probe and target connection:
 
 ```powershell
 probe-rs list
@@ -64,24 +74,30 @@ probe-rs chip list | Select-String "STM32F439ZI"
 probe-rs read --chip STM32F439ZI b32 0xE000ED00 1
 ```
 
-The owner observed STLink V2-1, supported chip name STM32F439ZI, and processor identification value `e000ed00: 410fc241`. This establishes debug communication without programming flash.
+Expected results:
 
-## 3. Preserve existing firmware before the first flash
+- `probe-rs list` lists the connected ST-LINK probe. Probe identifiers and other details can differ.
+- `probe-rs chip list` includes `STM32F439ZI`, confirming that probe-rs recognizes the chip name.
+- `probe-rs read` displays `e000ed00: 410fc241`, the processor identification register value observed on the project board. A successful read establishes debug communication without programming flash.
 
-**Flashing replaces the board's existing firmware.** Before programming a previously used board, save its main flash if its contents may matter. Choose an unused output filename and keep the copy safe; never overwrite the original backup with a read taken after flashing.
+## 3. Optional step: Preserve existing firmware before the first flash. You can skip it if the firmware already on the board is not valuable
+
+**3.1** **Flashing replaces the board's existing firmware.** Before programming a previously used board, save its main flash if its contents may matter. Choose an unused output filename and keep the copy safe.
 
 ```powershell
 probe-rs read --chip STM32F439ZI --format binary --output .\before-first-flash.bin b8 0x08000000 2097152
 ```
 
-This reads the 2 MiB main flash into a PC file without erasing or programming the board. The command can finish without console output. Check the file size and record its hash:
+This reads the 2 MiB main flash into a PC file without erasing or programming the board. The command can finish without console output. 
+
+**3.2** Check the file size and record its hash:
 
 ```powershell
 (Get-Item .\before-first-flash.bin).Length
 Get-FileHash .\before-first-flash.bin -Algorithm SHA256
 ```
 
-Expected size is **2097152 bytes**. The original project's copy has a different, dated filename; its hash and matching startup-byte checks are recorded in the journal. This is a main-flash copy, not a copy of RAM or every special memory region. Restoration has not been tested.
+Expected size is **2097152 bytes**. 
 
 ## 4. Understand and build the supplied firmware
 
@@ -100,18 +116,18 @@ The build path is **Rust source → compiler and linker → ELF firmware → pro
 
 `link.x` is supplied by the runtime and includes `memory.x`; it arranges the vector table, code, and data. The memory regions match [ST's STM32F439ZI datasheet](https://www.st.com/resource/en/datasheet/stm32f439zi.pdf), memory map on page 86.
 
-Check the source without linking, then build the complete firmware:
+**4.1** Check the source without linking, then build the complete firmware:
 
 ```powershell
 cargo check --target thumbv7em-none-eabihf
 cargo build
 ```
 
-Both commands succeeded during the guided exercises. The build uses the default dev profile, unoptimized with debug information. Output is `target\thumbv7em-none-eabihf\debug\stm32_1_hello_world`: an **ELF** containing machine code, addresses, and debug information, with no `.exe` extension. Building only changes PC files. Rebuild after every source change; the debug configuration does not do this automatically.
+The build uses the default dev profile, unoptimized with debug information. Output is `target\thumbv7em-none-eabihf\debug\stm32_1_hello_world`: an **ELF** containing machine code, addresses, and debug information, with no `.exe` extension. Building only changes PC files. Rebuild after every source change; the debug configuration does not do this automatically.
 
 ## 5. Flash and observe the LED
 
-With the board connected through CN1 and any active debug session ended, run:
+**5.1** With the board connected through CN1 and any active debug session ended, run:
 
 ```powershell
 probe-rs download --chip STM32F439ZI --verify --restore-unwritten --reset .\target\thumbv7em-none-eabihf\debug\stm32_1_hello_world
@@ -119,15 +135,15 @@ probe-rs download --chip STM32F439ZI --verify --restore-unwritten --reset .\targ
 
 `download` programs the ELF. `--verify` requests readback verification; `--restore-unwritten` preserves bytes outside the image within sectors erased during programming; `--reset` starts the firmware afterward. Options were checked against installed probe-rs help. Review the output for errors before proceeding.
 
-Expected behavior is blue **LD2 on PB7** on for 5 seconds and off for 5 seconds. GPIO means General-Purpose Input/Output; PB7 is port B, pin 7, not a connector pin number. UM1974 documents this LED as active HIGH. TIM5 provides the blocking delays: the processor waits before continuing the loop.
+**5.2** Observe blue **LD2 on PB7** on for 5 seconds and off for 5 seconds. GPIO means General-Purpose Input/Output; PB7 is port B, pin 7, not a connector pin number. UM1974 documents this LED as active HIGH. TIM5 provides the blocking delays: the processor waits before continuing the loop.
 
-To check independent startup, unplug USB and reconnect through CN1 without another programming command. The owner confirmed power-cycle startup with earlier steady-LED and blinking firmware. The latest counter version is expected to behave the same, but has not been separately power-cycle checked in chat.
+**5.3** To check independent startup, unplug USB and reconnect through CN1 without another programming command. The owner confirmed power-cycle startup with earlier steady-LED and blinking firmware. The latest counter version is expected to behave the same, but has not been separately power-cycle checked in chat.
 
 ## 6. Read serial messages in PowerShell
 
 The route is **firmware → USART3 TX on PD8 → ST-LINK → USB → Windows COM port**. USART3 is used in asynchronous serial mode; PD9 RX is unused. UM1974 section 6.9 documents the default ST-LINK routing. Serial communication worked without wiring or solder-bridge changes.
 
-Recheck the COM number in Device Manager. Settings are **115200 baud, 8 data bits, no parity, one stop bit (8N1), no flow control**. Run:
+**6.1** Recheck the COM number in Device Manager. Settings are **115200 baud, 8 data bits, no parity, one stop bit (8N1), no flow control**. Run:
 
 ```powershell
 .\Read-Serial.ps1 -Port COM6 -DurationSeconds 30
@@ -137,21 +153,25 @@ The script displays available characters, then closes the port. Defaults are COM
 
 Expected current text is `Hello from STM32! Cycle: N`, approximately once every 10 seconds: one loop includes both 5-second delays. The counter increments once per loop using wrapping u32 arithmetic. After reset its initial value is zero and the first message uses one.
 
-The owner observed recurring `Hello from STM32!` messages before the counter was added, including three messages in 30 seconds, and tested the saved script with a 20-second duration. Counter changes were subsequently observed in the debugger; counter text has not been separately confirmed in the serial reader.
-
 ## 7. Debug Rust source in VS Code
 
-In Extensions (Ctrl+Shift+X), install **Debugger for probe-rs**, publisher **probe-rs**, ID `probe-rs.probe-rs-debugger`. An Uninstall button confirms installation. The supplied launch configuration follows the [official probe-rs debugger guide](https://probe.rs/docs/tools/debugger/).
+**7.1** In Extensions (Ctrl+Shift+X), install **Debugger for probe-rs**, publisher **probe-rs**, ID `probe-rs.probe-rs-debugger`. This VS Code extension uses probe-rs to flash and debug the firmware, so you can pause execution, step through Rust code, and inspect variables. An Uninstall button confirms installation. The supplied launch configuration follows the [official probe-rs debugger guide](https://probe.rs/docs/tools/debugger/).
 
-1. Save source changes and run `cargo build` in the project terminal.
-2. In `src/main.rs`, place a breakpoint beside the cycle_count increment inside the loop. Remove breakpoints on the delays.
-3. Open Run and Debug (Ctrl+Shift+D), select **Debug STM32**, and click the green start triangle. F5 or Fn+F5 is an alternative. This **flashes the built ELF** and requests a halt after reset; a separate CLI flash is unnecessary.
-4. If paused in startup, use **Continue** on the active debug toolbar. Wait for the counter breakpoint; later loop iterations are about 10 seconds apart.
-5. Inspect cycle_count in Variables/Locals or Watch. Use **Step Over** on its increment and observe the value increase. The owner needed three clicks to advance to the next source line and updated value; one source statement need not correspond to one debugger step.
-6. Use Continue through the long delays. Paused application execution also stops progress of LED updates and messages.
-7. End the session with the red Stop square before starting another session or flashing from the terminal.
+**7.2** Save source changes and run `cargo build` in the project terminal.
 
-The new firmware remains in flash after debugging; ending a session does not restore the previous program. If it remains halted, power cycling starts the flashed application again. The owner demonstrated a source breakpoint, stepping, and variable inspection; debugger logs confirmed completed flash writes.
+**7.3** In `src/main.rs`, place a breakpoint beside the cycle_count increment inside the loop. Remove breakpoints on the delays.
+
+**7.4** Open Run and Debug (Ctrl+Shift+D), select **Debug STM32**, and click the green start triangle. F5 or Fn+F5 is an alternative. This **flashes the built ELF** and requests a halt after reset; a separate CLI flash is unnecessary.
+
+**7.5** If paused in startup, use **Continue** on the active debug toolbar. Wait for the counter breakpoint; later loop iterations are about 10 seconds apart.
+
+**7.6** Inspect cycle_count in Variables/Locals or Watch. Use **Step Over** on its increment and observe the value increase. The owner needed three clicks to advance to the next source line and updated value; one source statement need not correspond to one debugger step.
+
+**7.7** Use Continue through the long delays. Paused application execution also stops progress of LED updates and messages.
+
+**7.8** End the session with the red Stop square before starting another session or flashing from the terminal.
+
+The new firmware remains in flash after debugging; ending a session does not restore the previous program. If it remains halted, power cycling starts the flashed application again. 
 
 ## Troubleshooting
 
@@ -167,17 +187,3 @@ The new firmware remains in flash after debugging; ending a session does not res
 | COM6 access denied or unavailable | Close another serial reader and confirm the current port number in Device Manager. |
 | No serial output | Allow at least one complete 10-second cycle, confirm 115200 8N1 and the current COM port, and ensure the debugger has not paused execution. |
 | PowerShell blocks the script | Read the exact execution-policy error and resolve it according to your computer's policy; no policy change was required or tested here. |
-
-## Tested evidence and limitations
-
-Recorded project environment: **Windows 11 version 25H2**.
-
-| Tool or dependency | Recorded version |
-| --- | --- |
-| rustc / Cargo | 1.99.1 / 1.99.1 |
-| rustup | 1.29.2 |
-| probe-rs | 0.32.0 |
-| cortex-m-rt | 0.7.7 |
-| stm32f4xx-hal, feature stm32f439 | 0.23.0 |
-
-The owner supplied observations and command output; this documentation review did not repeat hardware operations. CLI readback verification output was not supplied, although `--verify` was requested. Debugger logs establish completed writes, not a separately reported readback check. LED timing was not independently measured. Backup restoration, a separate reset-button test, and reproduction on a second computer are untested. Exact VS Code, extension, and PowerShell versions are unrecorded. The journal preserves the detailed evidence and earlier learning stages.

@@ -23,6 +23,8 @@ The owner reported successful toolchain setup and communication with the STM32. 
 
 ## Decisions and progress
 
+### 2026-11-17 - README owner review and corrections
+
 ### 2026-11-08 — Final newcomer README review completed
 
 - Owner asked who should perform the review. Assistant undertook the technical/editorial review, leaving owner feedback focused on clarity; only documentation was changed.
